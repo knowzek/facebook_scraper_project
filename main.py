@@ -25,8 +25,8 @@ def scrape_facebook_events(page_url):
         page.wait_for_timeout(8000)
 
         # Save debug HTML for inspection
-        with open("debug.html", "w", encoding="utf-8") as f:
-            f.write(page.content())
+        print("\n🔍 DEBUG HTML (first 1000 chars):")
+        print(page.content()[:1000])
 
         event_titles = page.locator("div[role=article] h2").all_text_contents()
         print(f"✅ Found {len(event_titles)} event(s):")
