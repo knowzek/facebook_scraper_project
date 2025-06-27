@@ -22,13 +22,18 @@ def scrape_facebook_events(page_url):
         )
         page = context.new_page()
         page.goto(page_url, timeout=60000)
-        page.wait_for_selector('div[role="article"]', timeout=15000)
 
-        # Save debug HTML for inspection
+        # Wait until event links are visible
+        page.wait_for_selector('a[href*="/events/"]', timeout=15000)
+        
+        # Grab debug output
+        html = page.content()
         print("\n🔍 DEBUG HTML (first 1000 chars):")
-        print(page.content()[:1000])
+        print(html[:1000])
+        
+        # Extract event titles
+        event_titles = page.locator('a[href*="/events/"]').all_text_contents()
 
-        event_titles = page.locator("div[role=article] h2").all_text_contents()
         print(f"✅ Found {len(event_titles)} event(s):")
         for title in event_titles:
             print("📅", title)
