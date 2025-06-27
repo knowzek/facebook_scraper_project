@@ -22,7 +22,7 @@ def scrape_facebook_events(page_url):
         )
         page = context.new_page()
         page.goto(page_url, timeout=60000)
-        page.wait_for_timeout(8000)
+        page.wait_for_selector('div[role="article"]', timeout=15000)
 
         # Save debug HTML for inspection
         print("\n🔍 DEBUG HTML (first 1000 chars):")
