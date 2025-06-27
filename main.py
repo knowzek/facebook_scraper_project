@@ -1,3 +1,22 @@
+from playwright.sync_api import sync_playwright
+import hashlib
+from datetime import date
+import hashlib
+from playwright.sync_api import sync_playwright
+
+def get_today_facebook_url():
+with open("facebook_pages.txt") as f:
+pages = [line.strip() for line in f if line.strip()]
+if not pages:
+        raise Exception("No pages found in facebook_pages.txt")
+
+    # Use today's date to pick one deterministically
+        raise Exception("No Facebook pages found in facebook_pages.txt")
+    
+today = date.today().isoformat()
+idx = int(hashlib.md5(today.encode()).hexdigest(), 16) % len(pages)
+return pages[idx]
+
 def scrape_facebook_events(page_url):
     print(f"🌐 Launching browser for: {page_url}")
     with sync_playwright() as p:
