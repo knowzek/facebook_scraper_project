@@ -1,0 +1,7 @@
+services:
+  - type: cron
+    name: facebook-events-cron
+    runtime: python
+    buildCommand: ""
+    startCommand: python main.py
+    schedule: "0 10 * * *"  # every day at 10 AM UTC
