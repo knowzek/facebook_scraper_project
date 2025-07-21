@@ -44,9 +44,19 @@ def scrape_facebook_events(listing_url):
 
         try:
             page.wait_for_selector("a[href*='/events/']", timeout=10000)
-            print("⏳ Event links appear to be loaded.")
+            print("⏳ Initial event links loaded.")
         except:
-            print("⚠️ Timed out waiting for event links.")
+            print("⚠️ Timed out waiting for initial event links.")
+        
+        # 🔽 Scroll down multiple times to trigger lazy-loading
+        print("📜 Scrolling to bottom to load more events...")
+        for _ in range(5):  # Scroll down 5 times, adjust if needed
+            page.evaluate("window.scrollBy(0, document.body.scrollHeight)")
+            page.wait_for_timeout(1000)  # Wait 1 second between scrolls
+        
+        page.wait_for_timeout(2000)
+        print("✅ Finished scrolling.")
+
 
 
         event_links = page.locator("a[href*='/events/']").element_handles()
