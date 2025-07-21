@@ -13,7 +13,7 @@ def get_today_facebook_url():
 
     today = date.today().isoformat()
     idx = int(hashlib.md5(today.encode()).hexdigest(), 16) % len(pages)
-    return pages[idx].replace("www.facebook.com", "m.facebook.com")
+    return pages[idx]  # keep www.facebook.com
 
 def scrape_facebook_events(listing_url):
     print(f"🌐 Scraping (mobile) event listings from: {listing_url}")
@@ -21,12 +21,13 @@ def scrape_facebook_events(listing_url):
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
             user_agent=(
-                "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) "
-                "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1"
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
             ),
-            viewport={"width": 375, "height": 812},
-            storage_state="auth.json"  # ✅ load saved Facebook session
+            viewport={"width": 1280, "height": 800},
+            storage_state="auth.json"
         )
+
 
         page = context.new_page()
         page.goto(listing_url, timeout=60000)
