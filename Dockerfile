@@ -1,7 +1,7 @@
 FROM mcr.microsoft.com/playwright/python:v1.53.0-jammy
 
 WORKDIR /app
-COPY . .
+COPY auth.json auth.json
 
 RUN pip install --no-cache-dir -r requirements.txt
 RUN mkdir -p /output
