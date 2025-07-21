@@ -4,5 +4,7 @@ WORKDIR /app
 COPY . .
 
 RUN pip install --no-cache-dir -r requirements.txt
+RUN mkdir -p /output
 
-CMD ["python", "main.py"]
+CMD ["sh", "-c", "python main.py && cp landing_page.png /output/landing_page.png"]
+
