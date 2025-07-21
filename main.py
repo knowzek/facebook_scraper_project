@@ -30,7 +30,17 @@ def scrape_facebook_events(listing_url):
 
         page = context.new_page()
         page.goto(listing_url, timeout=60000)
+        import base64
+
         page.screenshot(path="landing_page.png", full_page=True)
+        print("📸 Screenshot saved: landing_page.png")
+        
+        # Read and print base64 version so we can see it from Render logs
+        with open("landing_page.png", "rb") as f:
+            encoded = base64.b64encode(f.read()).decode("utf-8")
+            print("🖼️ Screenshot (base64):")
+            print(encoded)
+
         print("📸 Screenshot saved: landing_page.png")
 
         page.wait_for_timeout(5000)
