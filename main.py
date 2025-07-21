@@ -4,6 +4,7 @@ from datetime import date
 import hashlib
 
 def get_today_facebook_url():
+    print("🧪 Opening facebook_pages.txt...")
     with open("facebook_pages.txt") as f:
         pages = [line.strip() for line in f if line.strip()]
 
