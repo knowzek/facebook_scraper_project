@@ -24,8 +24,10 @@ def scrape_facebook_events(listing_url):
                 "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) "
                 "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1"
             ),
-            viewport={"width": 375, "height": 812}
+            viewport={"width": 375, "height": 812},
+            storage_state="auth.json"  # ✅ load saved Facebook session
         )
+
         page = context.new_page()
         page.goto(listing_url, timeout=60000)
         page.wait_for_timeout(5000)
