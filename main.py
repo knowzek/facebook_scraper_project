@@ -1,7 +1,7 @@
 from playwright.sync_api import sync_playwright
-import hashlib
-from datetime import date
 import re
+from datetime import date
+import hashlib
 
 def get_today_facebook_url():
     with open("facebook_pages.txt") as f:
@@ -12,76 +12,58 @@ def get_today_facebook_url():
 
     today = date.today().isoformat()
     idx = int(hashlib.md5(today.encode()).hexdigest(), 16) % len(pages)
-    return pages[idx]
+    return pages[idx].replace("www.facebook.com", "m.facebook.com")
 
 def scrape_facebook_events(listing_url):
-    print(f"🌐 Scraping event listings from: {listing_url}")
+    print(f"🌐 Scraping (mobile) event listings from: {listing_url}")
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True, args=["--disable-blink-features=AutomationControlled"])
+        browser = p.chromium.launch(headless=True)
         context = browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
+            user_agent=(
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) "
+                "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1"
+            ),
+            viewport={"width": 375, "height": 812}
         )
         page = context.new_page()
         page.goto(listing_url, timeout=60000)
         page.wait_for_timeout(5000)
 
-        # Step 1: Collect all event links from the page
-        event_elements = page.locator('a[href*="/events/"]').element_handles()
+        event_links = page.locator("a[href*='/events/']").element_handles()
         links = set()
 
-        for el in event_elements:
+        for el in event_links:
             href = el.get_attribute("href")
             if href and "/events/" in href:
-                full_link = href if href.startswith("http") else f"https://www.facebook.com{href}"
+                full_link = href if href.startswith("http") else f"https://m.facebook.com{href}"
                 links.add(full_link)
 
         print(f"🔗 Found {len(links)} event links")
 
-        # Step 2: Visit each event page and scrape structured info
         results = []
         for link in links:
             print(f"➡️ Visiting: {link}")
             detail = context.new_page()
             try:
                 detail.goto(link, timeout=60000)
-                detail.wait_for_timeout(5000)
+                detail.wait_for_timeout(3000)
 
-                title = detail.locator("h1").first.text_content() or ""
-                time_block = detail.locator('[data-testid="event-permalink-details"]').inner_text() or ""
+                title = detail.locator("h1, h2").first.text_content() or ""
+                raw_text = detail.inner_text("body")
 
-                # Get location
-                location = detail.locator('[data-testid="event-permalink-details"] div:has-text("Location")').nth(1).text_content() or ""
+                date_match = re.search(r"\w+,\s+\w+\s+\d{1,2}", raw_text)
+                time_match = re.findall(r"\d{1,2}:\d{2}\s[APMapm]{2}", raw_text)
 
-                # Try to get description (either directly, or from a sibling div)
-                description = ""
-                try:
-                    desc_block = detail.locator('[data-testid="event-permalink-details"] div:has-text("Details")').nth(1)
-                    description = desc_block.text_content() or ""
-                except:
-                    try:
-                        all_text = detail.locator('[data-testid="event-permalink-details"]').inner_text()
-                        lines = all_text.splitlines()
-                        for i, line in enumerate(lines):
-                            if line.strip().lower() in ("details", "description") and i + 1 < len(lines):
-                                description = lines[i + 1].strip()
-                                break
-                    except:
-                        description = ""
-
-                times = re.findall(r"\d{1,2}:\d{2}\s[APM]{2}", time_block)
-                start_time = times[0] if len(times) > 0 else ""
-                end_time = times[1] if len(times) > 1 else ""
-
-                date_match = re.search(r"\w+,\s+\w+\s+\d{1,2}", time_block)
-                event_date = date_match.group(0) if date_match else ""
+                location_match = re.search(r"Location\s*([\w\s,]+)", raw_text)
+                description_match = re.search(r"Details\s*([\s\S]+?)\n", raw_text)
 
                 results.append({
                     "title": title.strip(),
-                    "date": event_date,
-                    "start_time": start_time,
-                    "end_time": end_time,
-                    "location": location.strip(),
-                    "description": description.strip(),
+                    "date": date_match.group(0) if date_match else "",
+                    "start_time": time_match[0] if len(time_match) > 0 else "",
+                    "end_time": time_match[1] if len(time_match) > 1 else "",
+                    "location": location_match.group(1).strip() if location_match else "",
+                    "description": (description_match.group(1).strip() if description_match else "").strip(),
                     "link": link
                 })
 
@@ -92,12 +74,6 @@ def scrape_facebook_events(listing_url):
 
         browser.close()
 
-        # Step 3: Print results
         print("\n✅ Final scraped events:")
         for event in results:
             print("📅", event)
-
-if __name__ == "__main__":
-    url = get_today_facebook_url()
-    print(f"📆 Scraping today’s URL: {url}")
-    scrape_facebook_events(url)
