@@ -41,8 +41,6 @@ def scrape_facebook_events(listing_url):
             print("🖼️ Screenshot (base64):")
             print(encoded)
 
-        print("📸 Screenshot saved: landing_page.png")
-
         page.wait_for_timeout(5000)
 
         event_links = page.locator("a[href*='/events/']").element_handles()
