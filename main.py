@@ -77,3 +77,15 @@ def scrape_facebook_events(listing_url):
         print("\n✅ Final scraped events:")
         for event in results:
             print("📅", event)
+
+
+if __name__ == "__main__":
+    try:
+        url = get_today_facebook_url()
+        print(f"📆 Scraping today’s URL: {url}")
+        scrape_facebook_events(url)
+    except Exception as e:
+        import traceback
+        print("❌ Script failed:")
+        traceback.print_exc()
+
