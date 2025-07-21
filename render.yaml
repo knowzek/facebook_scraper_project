@@ -1,9 +1,10 @@
 services:
   - type: cron
-    name: facebook-events-daily
-    runtime: python
-    schedule: "0 10 * * *"  # runs daily at 10 AM UTC
-    buildCommand: ""
-    startCommand: |
-      playwright install
-      python main.py
+    name: facebook-event-scraper
+    schedule: "0 13 * * *" # Every day at 6am PST / 9am EST
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+
