@@ -39,11 +39,18 @@ def scrape_facebook_events(listing_url):
             print(encoded)
 
         # 📜 Scroll deeply to load events
-        print("📜 Scrolling to bottom to load more events...")
-        for _ in range(12):
-            page.mouse.wheel(0, 2000)
-            page.wait_for_timeout(1500)
+        print("📜 Scrolling to load full page...")
+        previous_height = 0
+        for i in range(20):  # scroll up to 20 times
+            current_height = page.evaluate("document.body.scrollHeight")
+            if current_height == previous_height:
+                print("🛑 No more scrollable content detected.")
+                break
+            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            page.wait_for_timeout(2000)
+            previous_height = current_height
         print("✅ Finished scrolling.")
+
 
         # ⏳ Optional: wait again to let FB hydrate more
         page.wait_for_timeout(5000)
