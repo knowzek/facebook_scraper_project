@@ -61,7 +61,7 @@ def scrape_facebook_events(listing_url):
 
 
 
-        event_links = page.locator("a[href*='/events/']").element_handles()
+        event_links = page.locator("a").filter(has_text="Interested").element_handles()
         links = set()
 
         for el in event_links:
