@@ -2,6 +2,7 @@ from playwright.sync_api import sync_playwright
 import re
 from datetime import date
 import hashlib
+import base64
 
 def get_today_facebook_url():
     print("🧪 Opening facebook_pages.txt...")
@@ -13,65 +14,56 @@ def get_today_facebook_url():
 
     today = date.today().isoformat()
     idx = int(hashlib.md5(today.encode()).hexdigest(), 16) % len(pages)
-    return pages[idx].replace("www.facebook.com", "m.facebook.com")
+    return pages[idx]  # keep www.facebook.com
 
 def scrape_facebook_events(listing_url):
-    print(f"🌐 Scraping (mobile) event listings from: {listing_url}")
+    print(f"🌐 Scraping event listings from: {listing_url}")
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
-            user_agent=(
-                "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) "
-                "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1"
-            ),
-            viewport={"width": 375, "height": 812},
-            device_scale_factor=3,
-            is_mobile=True,
-            has_touch=True,
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+            viewport={"width": 1280, "height": 800},
             storage_state="auth.json"
         )
 
         page = context.new_page()
         page.goto(listing_url, timeout=60000)
-        import base64
+        page.wait_for_timeout(5000)  # wait for page content to hydrate
 
+        # 📸 Screenshot to debug
         page.screenshot(path="landing_page.png", full_page=True)
         print("📸 Screenshot saved: landing_page.png")
-        
-        # Read and print base64 version so we can see it from Render logs
         with open("landing_page.png", "rb") as f:
             encoded = base64.b64encode(f.read()).decode("utf-8")
             print("🖼️ Screenshot (base64):")
             print(encoded)
 
-        try:
-            page.wait_for_selector("a[href*='/events/']", timeout=10000)
-            print("⏳ Initial event links loaded.")
-        except:
-            print("⚠️ Timed out waiting for initial event links.")
-        
-        # 🔽 Scroll down multiple times to trigger lazy-loading
+        # 📜 Scroll deeply to load events
         print("📜 Scrolling to bottom to load more events...")
-        for _ in range(5):  # Scroll down 5 times, adjust if needed
-            page.evaluate("window.scrollBy(0, document.body.scrollHeight)")
-            page.wait_for_timeout(1000)  # Wait 1 second between scrolls
-        
-        page.wait_for_timeout(2000)
+        for _ in range(12):
+            page.mouse.wheel(0, 2000)
+            page.wait_for_timeout(1500)
         print("✅ Finished scrolling.")
 
+        # ⏳ Optional: wait again to let FB hydrate more
+        page.wait_for_timeout(5000)
 
-
-        event_links = page.locator("div[role='article'] a[href*='/events/']").element_handles()
+        # 🔗 Extract & filter real event links
+        all_links = page.locator("a[href*='/events/']").element_handles()
         links = set()
 
-        for el in event_links:
+        for el in all_links:
             href = el.get_attribute("href")
-            if href and "/events/" in href:
-                full_link = href if href.startswith("http") else f"https://m.facebook.com{href}"
-                links.add(full_link)
+            if not href or "/events/" not in href:
+                continue
+            if any(x in href.lower() for x in ["create", "invite", "share", "#"]):
+                continue
+            full_link = href if href.startswith("http") else f"https://www.facebook.com{href}"
+            links.add(full_link)
 
         print(f"🔗 Found {len(links)} event links")
 
+        # 📅 Visit each event and extract details
         results = []
         for link in links:
             print(f"➡️ Visiting: {link}")
@@ -110,7 +102,6 @@ def scrape_facebook_events(listing_url):
         for event in results:
             print("📅", event)
 
-
 if __name__ == "__main__":
     try:
         url = get_today_facebook_url()
@@ -120,4 +111,3 @@ if __name__ == "__main__":
         import traceback
         print("❌ Script failed:")
         traceback.print_exc()
-
