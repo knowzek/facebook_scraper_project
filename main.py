@@ -23,6 +23,12 @@ FB_PAGE_TO_CITY = {
 
 def scrape_facebook_events(listing_url):
     print(f"🌐 Scraping event listings from: {listing_url}")
+    city = "Unknown"
+    for key, val in FB_PAGE_TO_CITY.items():
+        if key in listing_url:
+            city = val
+            break
+
     with sync_playwright() as p:
         browser = p.chromium.connect_over_cdp(
             f"wss://production-sfo.browserless.io?token={os.environ['BROWSERLESS_TOKEN']}"
@@ -39,19 +45,20 @@ def scrape_facebook_events(listing_url):
         previous_height = 0
         scroll_attempts = 0
         
-        while scroll_attempts < 30:
+        while scroll_attempts < 50:
             current_height = page.evaluate("document.body.scrollHeight")
             if current_height == previous_height:
                 break
             page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            page.wait_for_timeout(3000)
+            page.wait_for_timeout(4000)
             previous_height = current_height
             scroll_attempts += 1
         print("✅ Finished scrolling.")
 
         
         links = set()
-        anchors = page.locator("a[href*='/events/']:not([role='button'])").element_handles()
+        anchors = page.locator("a[href*='/events/']").element_handles()
+
         for el in anchors:  # ← this line was missing in your version
             href = el.get_attribute("href")
             if href and "/events/" in href:
@@ -87,6 +94,7 @@ def scrape_facebook_events(listing_url):
                 results.append({
                     "title": title.strip(),
                     "date": date_match.group(0) if date_match else "",
+                    "city": city,
                     "start_time": time_match[0] if time_match else "",
                     "end_time": time_match[1] if len(time_match) > 1 else "",
                     "location": location,
@@ -131,11 +139,8 @@ if __name__ == "__main__":
         # Normalize and enrich event data
         for event in deduped_events:
             # 🔎 Detect city from event link
-            city = "Unknown"
-            for key, val in FB_PAGE_TO_CITY.items():
-                if key in event["link"]:
-                    city = val
-                    break
+            city = event.get("city", "Unknown")
+
         
             # 🧼 Clean title (remove everything after "|")
             raw_title = event.get("title", "")
@@ -181,7 +186,12 @@ if __name__ == "__main__":
             # 🎯 Assign deduped tag list
             event["Categories"] = ", ".join(dict.fromkeys(tags))
             event["Program Type"] = event["Categories"]
-        
+
+
+        print(f"✅ Final event count: {len(deduped_events)}")
+        for e in deduped_events:
+            print(f"📅 {e['Event Name']} → {e['Event Link']}")
+
         # ✅ Upload to Google Sheet using VBPL config
         upload_events_to_sheet(deduped_events, library="vbpl")
 
