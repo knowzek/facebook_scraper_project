@@ -4,6 +4,12 @@ from datetime import datetime
 import hashlib
 import os
 from upload_to_sheets import upload_events_to_sheet
+from constants import (
+    TITLE_KEYWORD_TO_CATEGORY,
+    COMBINED_KEYWORD_TO_CATEGORY,
+    UNWANTED_TITLE_KEYWORDS,
+    FACEBOOK_LOCATION_MAP
+)
 
 FB_PAGE_TO_CITY = {
     "facebook.com/VBParksRec": "Virginia Beach",
@@ -11,6 +17,7 @@ FB_PAGE_TO_CITY = {
     "facebook.com/HamptonVALib": "Hampton",
     "facebook.com/SuffolkPublicLibrary": "Suffolk",
     "facebook.com/NNLibrary": "Newport News",
+    "facebook.com/NorfolkParksRec": "Norfolk",
     "facebook.com/ChesapeakePL": "Chesapeake",
 }
 
@@ -116,6 +123,11 @@ if __name__ == "__main__":
 
         deduped_events = list(unique_events.values())
 
+        deduped_events = [
+            e for e in deduped_events
+            if not any(bad.lower() in e["title"].lower() for bad in UNWANTED_TITLE_KEYWORDS)
+        ]
+
         # Normalize and enrich event data
         for event in deduped_events:
             # 🔎 Detect city from event link
@@ -135,7 +147,10 @@ if __name__ == "__main__":
             event["Event Status"] = "Available"
             event["Time"] = f"{event['start_time']} - {event['end_time']}"
             event["Ages"] = ""
-            event["Location"] = event.get("location", "")
+            raw_location = event.get("location", "")
+            mapped_location = FACEBOOK_LOCATION_MAP.get(raw_location.strip(), raw_location.strip())
+            event["Location"] = mapped_location
+
             event["Event Description"] = event.get("description", "")
             event["Series"] = ""
         
@@ -156,6 +171,10 @@ if __name__ == "__main__":
             for keyword, cat in TITLE_KEYWORD_TO_CATEGORY.items():
                 if keyword.lower() in full_text:
                     tags.extend([c.strip() for c in cat.split(",")])
+            for (kw1, kw2), cat in COMBINED_KEYWORD_TO_CATEGORY.items():
+                if kw1 in full_text and kw2 in full_text:
+                    tags.extend([c.strip() for c in cat.split(",")])
+
         
             tags.append(f"Event Location - {city}")
         
@@ -171,3 +190,4 @@ if __name__ == "__main__":
         import traceback
         print("❌ Script failed:")
         traceback.print_exc()
+        raise 
