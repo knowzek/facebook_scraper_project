@@ -4,7 +4,15 @@ from datetime import datetime
 import hashlib
 import os
 from upload_to_sheets import upload_events_to_sheet
-from constants import TITLE_KEYWORD_TO_CATEGORY  # make sure this is accessible
+
+FB_PAGE_TO_CITY = {
+    "facebook.com/VBParksRec": "Virginia Beach",
+    "facebook.com/PortsmouthPublicLibrary": "Portsmouth",
+    "facebook.com/HamptonVALib": "Hampton",
+    "facebook.com/SuffolkPublicLibrary": "Suffolk",
+    "facebook.com/NNLibrary": "Newport News",
+    "facebook.com/ChesapeakePL": "Chesapeake",
+}
 
 def scrape_facebook_events(listing_url):
     print(f"🌐 Scraping event listings from: {listing_url}")
@@ -22,14 +30,18 @@ def scrape_facebook_events(listing_url):
 
         print("📜 Scrolling page to load all content...")
         previous_height = 0
-        for _ in range(15):
+        scroll_attempts = 0
+        
+        while scroll_attempts < 30:
             current_height = page.evaluate("document.body.scrollHeight")
             if current_height == previous_height:
                 break
             page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            page.wait_for_timeout(2000)
+            page.wait_for_timeout(3000)
             previous_height = current_height
+            scroll_attempts += 1
         print("✅ Finished scrolling.")
+
         
         links = set()
         anchors = page.locator("a[href*='/events/']:not([role='button'])").element_handles()
@@ -63,7 +75,7 @@ def scrape_facebook_events(listing_url):
                 elif "|" in title:
                     location = title.split("|")[-1].strip()
 
-                description_match = re.search(r"Details\s*([\s\S]+?)\n", raw_text)
+                description_match = re.search(r"Details\s*(.*?)\n(?:Event by|Duration|Public)", raw_text, re.DOTALL | re.IGNORECASE)
 
                 results.append({
                     "title": title.strip(),
@@ -104,36 +116,56 @@ if __name__ == "__main__":
 
         deduped_events = list(unique_events.values())
 
+        # Normalize and enrich event data
         for event in deduped_events:
-            event["Event Name"] = event["title"] + " (Virginia Beach)"
+            # 🔎 Detect city from event link
+            city = "Unknown"
+            for key, val in FB_PAGE_TO_CITY.items():
+                if key in event["link"]:
+                    city = val
+                    break
+        
+            # 🧼 Clean title (remove everything after "|")
+            raw_title = event.get("title", "")
+            clean_title = raw_title.split("|")[0].strip() if "|" in raw_title else raw_title.strip()
+        
+            # 🏷️ Core fields
+            event["Event Name"] = f"{clean_title} ({city})"
             event["Event Link"] = event["link"]
             event["Event Status"] = "Available"
             event["Time"] = f"{event['start_time']} - {event['end_time']}"
-            event["Ages"] = ""  # Facebook usually lacks this
+            event["Ages"] = ""
             event["Location"] = event.get("location", "")
             event["Event Description"] = event.get("description", "")
             event["Series"] = ""
-
-            # 🎯 Parse Month / Day / Year dynamically
+        
+            # 📅 Parse Month / Day / Year
             try:
-                parsed_date = datetime.strptime(event["date"], "%A, %B %d")
-                event["Month"] = parsed_date.strftime("%b")
-                event["Day"] = str(parsed_date.day)
+                dt = datetime.strptime(event["date"], "%A, %B %d")
+                event["Month"] = dt.strftime("%b")
+                event["Day"] = str(dt.day)
                 event["Year"] = str(datetime.now().year)
             except:
-                event["Month"] = ""
-                event["Day"] = ""
+                event["Month"] = event["Day"] = ""
                 event["Year"] = str(datetime.now().year)
-
-            # 🧠 Auto-assign categories based on keywords
-            matched_categories = set()
-            for keyword, category_string in TITLE_KEYWORD_TO_CATEGORY.items():
-                if keyword.lower() in event["title"].lower():
-                    matched_categories.update(c.strip() for c in category_string.split(","))
-            event["Program Type"] = ", ".join(sorted(matched_categories))
-
-        # ✅ Upload to Google Sheets
+        
+            # 🧠 Category assignment from keywords
+            full_text = f"{event['title']} {event.get('description', '')}".lower()
+            tags = []
+        
+            for keyword, cat in TITLE_KEYWORD_TO_CATEGORY.items():
+                if keyword.lower() in full_text:
+                    tags.extend([c.strip() for c in cat.split(",")])
+        
+            tags.append(f"Event Location - {city}")
+        
+            # 🎯 Assign deduped tag list
+            event["Categories"] = ", ".join(dict.fromkeys(tags))
+            event["Program Type"] = event["Categories"]
+        
+        # ✅ Upload to Google Sheet using VBPL config
         upload_events_to_sheet(deduped_events, library="vbpl")
+
 
     except Exception as e:
         import traceback
