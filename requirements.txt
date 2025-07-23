@@ -1,2 +1,5 @@
 playwright
 bs4
+gspread
+google-auth
+pandas
