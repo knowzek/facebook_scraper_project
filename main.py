@@ -17,9 +17,8 @@ def get_today_facebook_url():
 def scrape_facebook_events(listing_url):
     print(f"🌐 Scraping event listings from: {listing_url}")
     with sync_playwright() as p:
-        browser = p.chromium.connect_over_cdp(
-            f"wss://chrome.browserless.io?token={os.environ['BROWSERLESS_TOKEN']}"
-        )
+        browser = p.chromium.connect_over_cdp(f"wss://production-sfo.browserless.io?token={os.environ['BROWSERLESS_TOKEN']}")
+
         context = browser.contexts[0] if browser.contexts else browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
             viewport={"width": 1280, "height": 800}
