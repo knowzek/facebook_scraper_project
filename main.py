@@ -30,16 +30,18 @@ def scrape_facebook_events(listing_url):
             page.wait_for_timeout(2000)
             previous_height = current_height
         print("✅ Finished scrolling.")
-
+        
         links = set()
-        for el in page.locator("a[href*='/events/']").element_handles():
+        anchors = page.locator("a[href*='/events/']:not([role='button'])").element_handles()
+        for el in anchors:  # ← this line was missing in your version
             href = el.get_attribute("href")
             if href and "/events/" in href:
                 full_link = href if href.startswith("http") else f"https://www.facebook.com{href}"
                 links.add(full_link)
-
+        
         print(f"🔗 Found {len(links)} event links.")
         results = []
+
 
         for link in links:
             print(f"➡️ Visiting event: {link}")
