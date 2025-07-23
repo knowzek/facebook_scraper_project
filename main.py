@@ -3,7 +3,6 @@ import re
 from datetime import date
 import hashlib
 import os
-import base64
 
 def get_today_facebook_url():
     with open("facebook_pages.txt") as f:
@@ -13,43 +12,43 @@ def get_today_facebook_url():
 
     today = date.today().isoformat()
     idx = int(hashlib.md5(today.encode()).hexdigest(), 16) % len(pages)
-    return pages[idx]
+    return pages[idx]  # keep full www.facebook.com
 
 def scrape_facebook_events(listing_url):
     print(f"🌐 Scraping event listings from: {listing_url}")
     with sync_playwright() as p:
-        browser = p.chromium.connect_over_cdp(
-            f"wss://production-sfo.browserless.io?token={os.environ['BROWSERLESS_TOKEN']}"
-        )
+        browser = p.chromium.connect_over_cdp(f"wss://production-sfo.browserless.io?token={os.environ['BROWSERLESS_TOKEN']}")
 
         context = browser.contexts[0] if browser.contexts else browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
             viewport={"width": 1280, "height": 800}
         )
         page = context.new_page()
+
+        print("📜 Navigating to Facebook event page...")
         page.goto(listing_url, timeout=90000)
+
         print("📜 Scrolling page to load all content...")
-
-        # Scroll slowly to trigger FB lazy loading
+        previous_height = 0
         for _ in range(15):
-            page.evaluate("window.scrollBy(0, window.innerHeight)")
+            current_height = page.evaluate("document.body.scrollHeight")
+            if current_height == previous_height:
+                break
+            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             page.wait_for_timeout(2000)
-
+            previous_height = current_height
         print("✅ Finished scrolling.")
-        page.screenshot(path="debug_fb_landing.png", full_page=True)
-        print("📸 Screenshot saved.")
 
-        # ⛏ Extract all event anchor links
-        anchors = page.locator("a[href*='/events/']").element_handles()
         links = set()
-        for el in anchors:
+        for el in page.locator("a[href*='/events/']").element_handles():
             href = el.get_attribute("href")
-            if href and "/events/" in href and not href.endswith("/events"):  # filter the listing root itself
+            if href and "/events/" in href:
                 full_link = href if href.startswith("http") else f"https://www.facebook.com{href}"
                 links.add(full_link)
 
         print(f"🔗 Found {len(links)} event links.")
 
+        # Visit each event and extract data
         results = []
         for link in links:
             print(f"➡️ Visiting event: {link}")
@@ -80,10 +79,12 @@ def scrape_facebook_events(listing_url):
             finally:
                 detail.close()
 
-        browser.close()
         print("✅ Final scraped events:")
         for r in results:
             print("📅", r)
+
+        browser.close()
+
 
 if __name__ == "__main__":
     try:
