@@ -84,6 +84,12 @@ UNWANTED_TITLE_KEYWORDS = [
     "adult"
 ]
 
+FACEBOOK_LOCATION_MAP = {
+    "Rosemont Elementary": "Rosemont Elementary School",
+    "College Park Elementary": "College Park Elementary School",
+    "Williams Farm": "Williams Farm Park",
+}
+
 LIBRARY_CONSTANTS = {
     "vbpl": {
         "program_type_to_categories": {
