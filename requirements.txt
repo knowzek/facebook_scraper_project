@@ -1,5 +1,6 @@
 playwright
-bs4
 gspread
-google-auth
 pandas
+google-auth
+google-api-python-client
+bs4
