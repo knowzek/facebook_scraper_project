@@ -4,6 +4,8 @@ from datetime import datetime
 import hashlib
 import os
 from upload_to_sheets import upload_events_to_sheet
+from export_to_csv import send_notification_email_with_attachment
+
 from constants import (
     TITLE_KEYWORD_TO_CATEGORY,
     COMBINED_KEYWORD_TO_CATEGORY,
@@ -150,7 +152,11 @@ if __name__ == "__main__":
             clean_title = raw_title.split("|")[0].strip() if "|" in raw_title else raw_title.strip()
         
             # 🏷️ Core fields
-            event["Event Name"] = f"{clean_title} ({city})"
+            if f"({city})" not in clean_title:
+                event["Event Name"] = f"{clean_title} ({city})"
+            else:
+                event["Event Name"] = clean_title
+
             event["Event Link"] = event["link"]
             event["Event Status"] = "Available"
             event["Time"] = f"{event['start_time']} - {event['end_time']}"
