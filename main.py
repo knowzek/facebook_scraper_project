@@ -57,7 +57,7 @@ def scrape_facebook_events(listing_url):
 
         
         links = set()
-        anchors = page.locator("a[href*='/events/']").element_handles()
+        anchors = page.locator("[href*='/events/']").element_handles()
 
         for el in anchors:  # ← this line was missing in your version
             href = el.get_attribute("href")
@@ -66,6 +66,9 @@ def scrape_facebook_events(listing_url):
                 links.add(full_link)
         
         print(f"🔗 Found {len(links)} event links.")
+        for l in links:
+            print("🔗 Link:", l)
+
         results = []
 
 
