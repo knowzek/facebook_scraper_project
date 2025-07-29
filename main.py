@@ -57,31 +57,33 @@ def scrape_facebook_events(listing_url):
             scroll_attempts += 1
         print("✅ Finished scrolling.")
 
-        # 🔍 Save debug screenshot and page HTML to verify content
+        # 🔍 Save debug output
         page.screenshot(path="facebook_debug.png", full_page=True)
         with open("facebook_debug.html", "w", encoding="utf-8") as f:
             f.write(page.content())
-            
+
+        # ✅ Extract event links
         links = set()
-        anchors = page.query_selector_all("a[href*='/events/']")
-        print(f"🧪 Found {len(anchors)} total anchors")
-        
-        for el in anchors:
+        page.wait_for_timeout(3000)
+        anchors = page.locator("a[href*='/events/']")
+        count = anchors.count()
+        print(f"🧪 Found {count} total anchors")
+
+        for i in range(count):
             try:
-                href = el.get_attribute("href")
+                href = anchors.nth(i).get_attribute("href")
                 if href and "/events/" in href and "/photos/" not in href:
                     full_link = href if href.startswith("http") else f"https://www.facebook.com{href}"
                     links.add(full_link)
             except Exception as e:
                 print(f"⚠️ Failed to extract href: {e}")
-        
+
         print(f"🔗 Found {len(links)} event links.")
         for l in links:
             print("🔗 Link:", l)
 
+        # ✅ Visit and extract data
         results = []
-
-
         for link in links:
             print(f"➡️ Visiting event: {link}")
             detail = context.new_page()
@@ -91,7 +93,6 @@ def scrape_facebook_events(listing_url):
                 title = detail.locator("h1, h2").first.text_content() or ""
                 raw_text = detail.inner_text("body")
 
-                # Parse date and time
                 date_match = re.search(r"\w+,\s+\w+\s+\d{1,2}", raw_text)
                 time_match = re.findall(r"\d{1,2}:\d{2}\s[APMapm]{2}", raw_text)
 
@@ -114,7 +115,6 @@ def scrape_facebook_events(listing_url):
                     "description": description_match.group(1).strip() if description_match else "",
                     "link": link
                 })
-
             except Exception as e:
                 print(f"⚠️ Failed to load: {link} → {e}")
             finally:
@@ -123,7 +123,7 @@ def scrape_facebook_events(listing_url):
         browser.close()
         return results
 
-
+# === Main execution block ===
 if __name__ == "__main__":
     try:
         all_scraped_events = []
@@ -135,13 +135,12 @@ if __name__ == "__main__":
             events = scrape_facebook_events(url)
             all_scraped_events.extend(events)
 
-        # ✅ Deduplicate by normalized link
+        # Deduplicate
         unique_events = {}
         for event in all_scraped_events:
             key = event["link"].split("?")[0]
             if key not in unique_events:
                 unique_events[key] = event
-
         deduped_events = list(unique_events.values())
 
         deduped_events = [
@@ -149,23 +148,12 @@ if __name__ == "__main__":
             if not any(bad.lower() in e["title"].lower() for bad in UNWANTED_TITLE_KEYWORDS)
         ]
 
-        # Normalize and enrich event data
+        # Enrich event metadata
         for event in deduped_events:
-            # 🔎 Detect city from event link
             city = event.get("city", "Unknown")
-
-        
-            # 🧼 Clean title (remove everything after "|")
             raw_title = event.get("title", "")
             clean_title = raw_title.split("|")[0].strip() if "|" in raw_title else raw_title.strip()
-        
-            # Only append city if it's not already in any part of the title
-            if city.lower() not in clean_title.lower():
-                event["Event Name"] = f"{clean_title} ({city})"
-            else:
-                event["Event Name"] = clean_title
-
-
+            event["Event Name"] = clean_title if city.lower() in clean_title.lower() else f"{clean_title} ({city})"
             event["Event Link"] = event["link"]
             event["Event Status"] = "Available"
             event["Time"] = f"{event['start_time']} - {event['end_time']}"
@@ -173,11 +161,9 @@ if __name__ == "__main__":
             raw_location = event.get("location", "")
             mapped_location = FACEBOOK_LOCATION_MAP.get(raw_location.strip(), raw_location.strip())
             event["Location"] = mapped_location
-
             event["Event Description"] = event.get("description", "")
             event["Series"] = ""
-        
-            # 📅 Parse Month / Day / Year
+
             try:
                 dt = datetime.strptime(event["date"], "%A, %B %d")
                 event["Month"] = dt.strftime("%b")
@@ -186,11 +172,10 @@ if __name__ == "__main__":
             except:
                 event["Month"] = event["Day"] = ""
                 event["Year"] = str(datetime.now().year)
-        
-            # 🧠 Category assignment from keywords
+
             full_text = f"{event['title']} {event.get('description', '')}".lower()
             tags = []
-        
+
             for keyword, cat in TITLE_KEYWORD_TO_CATEGORY.items():
                 if keyword.lower() in full_text:
                     tags.extend([c.strip() for c in cat.split(",")])
@@ -198,24 +183,18 @@ if __name__ == "__main__":
                 if kw1 in full_text and kw2 in full_text:
                     tags.extend([c.strip() for c in cat.split(",")])
 
-        
             tags.append(f"Event Location - {city}")
-        
-            # 🎯 Assign deduped tag list
             event["Categories"] = ", ".join(dict.fromkeys(tags))
             event["Program Type"] = event["Categories"]
-
 
         print(f"✅ Final event count: {len(deduped_events)}")
         for e in deduped_events:
             print(f"📅 {e['Event Name']} → {e['Event Link']}")
 
-        # ✅ Upload to Google Sheet using VBPL config
         upload_events_to_sheet(deduped_events, library="vbpl")
-
 
     except Exception as e:
         import traceback
         print("❌ Script failed:")
         traceback.print_exc()
-        raise 
+        raise
