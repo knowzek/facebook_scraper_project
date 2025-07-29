@@ -9,6 +9,7 @@ import re
 from constants import LIBRARY_CONSTANTS, TITLE_KEYWORD_TO_CATEGORY
 from constants import COMBINED_KEYWORD_TO_CATEGORY
 import pandas as pd
+from export_to_csv import send_notification_email_with_attachment
 
 
 def _clean_link(url: str) -> str:
