@@ -63,7 +63,7 @@ def scrape_facebook_events(listing_url):
             f.write(page.content())
             
         links = set()
-        anchors = page.query_selector_all("a")
+        anchors = page.query_selector_all("a[href*='/events/']")
         print(f"🧪 Found {len(anchors)} total anchors")
         
         for el in anchors:
