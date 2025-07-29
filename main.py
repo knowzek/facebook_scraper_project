@@ -59,24 +59,25 @@ def scrape_facebook_events(listing_url):
 
         # 🔍 Save debug output
         page.screenshot(path="facebook_debug.png", full_page=True)
+        html_content = page.content()
+        if callable(html_content):
+            html_content = html_content()
+        
         with open("facebook_debug.html", "w", encoding="utf-8") as f:
-            f.write(page.content())
+            f.write(html_content)
+        
+        raw_html = html_content
 
-                # ✅ Extract event links by parsing raw HTML instead of Playwright anchors
+        # ✅ Extract event links by parsing raw HTML
         links = set()
-        raw_html = page.content()
         matches = re.findall(r'href="(\/events\/\d+[^\"]*)"', raw_html)
-
+        
         for href in matches:
+
             if "/photos/" in href:
                 continue
             full_link = href if href.startswith("http") else f"https://www.facebook.com{href}"
             links.add(full_link)
-
-        print(f"🔗 Found {len(links)} event links.")
-        for l in links:
-            print("🔗 Link:", l)
-
 
         print(f"🔗 Found {len(links)} event links.")
         for l in links:
