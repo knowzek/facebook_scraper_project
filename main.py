@@ -57,15 +57,23 @@ def scrape_facebook_events(listing_url):
             scroll_attempts += 1
         print("✅ Finished scrolling.")
 
-        
+        # 🔍 Save debug screenshot and page HTML to verify content
+        page.screenshot(path="facebook_debug.png", full_page=True)
+        with open("facebook_debug.html", "w", encoding="utf-8") as f:
+            f.write(page.content())
+            
         links = set()
-        anchors = page.locator("[href*='/events/']").element_handles()
-
-        for el in anchors:  # ← this line was missing in your version
-            href = el.get_attribute("href")
-            if href and "/events/" in href:
-                full_link = href if href.startswith("http") else f"https://www.facebook.com{href}"
-                links.add(full_link)
+        anchors = page.query_selector_all("a")
+        print(f"🧪 Found {len(anchors)} total anchors")
+        
+        for el in anchors:
+            try:
+                href = el.get_attribute("href")
+                if href and "/events/" in href and "/photos/" not in href:
+                    full_link = href if href.startswith("http") else f"https://www.facebook.com{href}"
+                    links.add(full_link)
+            except Exception as e:
+                print(f"⚠️ Failed to extract href: {e}")
         
         print(f"🔗 Found {len(links)} event links.")
         for l in links:
