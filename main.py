@@ -151,11 +151,12 @@ if __name__ == "__main__":
             raw_title = event.get("title", "")
             clean_title = raw_title.split("|")[0].strip() if "|" in raw_title else raw_title.strip()
         
-            # 🏷️ Core fields
-            if f"({city})" not in clean_title:
+            # Only append city if it's not already in any part of the title
+            if city.lower() not in clean_title.lower():
                 event["Event Name"] = f"{clean_title} ({city})"
             else:
                 event["Event Name"] = clean_title
+
 
             event["Event Link"] = event["link"]
             event["Event Status"] = "Available"
