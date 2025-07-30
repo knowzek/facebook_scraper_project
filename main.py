@@ -5,6 +5,7 @@ import hashlib
 import os
 from upload_to_sheets import upload_events_to_sheet
 from export_to_csv import send_notification_email_with_attachment
+import json
 
 from constants import (
     TITLE_KEYWORD_TO_CATEGORY,
@@ -12,6 +13,18 @@ from constants import (
     UNWANTED_TITLE_KEYWORDS,
     FACEBOOK_LOCATION_MAP
 )
+
+from googleapiclient.http import MediaFileUpload
+
+def upload_debug_to_drive(service, filepath):
+    file_metadata = {"name": os.path.basename(filepath)}
+    media = MediaFileUpload(filepath, resumable=True)
+    uploaded_file = service.files().create(
+        body=file_metadata,
+        media_body=media,
+        fields="id"
+    ).execute()
+    print(f"📤 Uploaded debug file to Drive: {uploaded_file.get('id')}")
 
 FB_PAGE_TO_CITY = {
     "facebook.com/VBParksRec": "Virginia Beach",
@@ -65,7 +78,18 @@ def scrape_facebook_events(listing_url):
         
         with open("facebook_debug.html", "w", encoding="utf-8") as f:
             f.write(html_content)
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
         
+        SCOPES = ['https://www.googleapis.com/auth/drive.file']
+
+        service_account_info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+        credentials = service_account.Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+        drive_service = build('drive', 'v3', credentials=credentials)
+        
+        upload_debug_to_drive(drive_service, "facebook_debug.html")
+        upload_debug_to_drive(drive_service, "facebook_debug.png")
+
         raw_html = html_content
 
         # ✅ Extract event links by parsing raw HTML
