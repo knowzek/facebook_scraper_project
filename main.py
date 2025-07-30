@@ -50,32 +50,35 @@ def scrape_facebook_events(listing_url):
 
         # 🧼 Dismiss popup if visible
         try:
-            popup_close = page.locator("div[aria-label='Close'], div[aria-label='Dismiss']").first
-            if popup_close.is_visible():
-                popup_close.click(timeout=3000)
-                print("❎ Dismissed popup.")
-        except:
-            print("ℹ️ No popup found.")
+            popup = page.locator("div[role='dialog'] [aria-label='Close']")
+            if popup.count() > 0:
+                print("❎ Dismissing login popup...")
+                popup.first.click()
+                page.wait_for_timeout(2000)
+        except Exception as e:
+            print(f"ℹ️ No popup found or failed to dismiss: {e}")
 
         # 🔍 Save debug
         page.screenshot(path="facebook_debug.png", full_page=True)
         with open("facebook_debug.html", "w", encoding="utf-8") as f:
             f.write(page.content())
 
-        # 🧭 Find event links
+                # 🧭 Find event links using broader anchor search
         links = set()
-        anchors = page.locator("a[href*='/events/']")
+        anchors = page.locator("a")
         count = anchors.count()
-        print(f"🧪 Found {count} event anchors")
+        print(f"🧪 Found {count} total anchors")
 
         for i in range(count):
             try:
-                href = anchors.nth(i).get_attribute("href")
+                el = anchors.nth(i)
+                href = el.get_attribute("href")
                 if href and "/events/" in href and "/photos/" not in href:
                     full_link = href if href.startswith("http") else f"https://www.facebook.com{href}"
                     links.add(full_link)
-            except:
-                continue
+            except Exception as e:
+                print(f"⚠️ Anchor parse error: {e}")
+
 
         print(f"🔗 Found {len(links)} event links.")
         results = []
