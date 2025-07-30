@@ -78,6 +78,10 @@ def scrape_facebook_events(listing_url):
         
         with open("facebook_debug.html", "w", encoding="utf-8") as f:
             f.write(html_content)
+
+        # 📧 Email debug files
+        send_notification_email_with_attachment("facebook_debug.html", "Facebook Debug HTML", "knowzek@gmail.com")
+        send_notification_email_with_attachment("facebook_debug.png", "Facebook Debug Screenshot", "knowzek@gmail.com")
         from google.oauth2 import service_account
         from googleapiclient.discovery import build
         
