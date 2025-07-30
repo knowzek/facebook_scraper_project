@@ -55,7 +55,14 @@ def scrape_facebook_events(listing_url):
         )
         page = context.new_page()
         page.goto(listing_url, timeout=90000)
-
+        # Dismiss login modal if it appears
+        try:
+            page.screenshot(path="before_dismiss.png", full_page=True)
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(1000)
+        except Exception:
+            pass
+        page.screenshot(path="after_dismiss.png", full_page=True)
         print("📜 Scrolling page to load all content...")
         previous_height = 0
         scroll_attempts = 0
